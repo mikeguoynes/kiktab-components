@@ -17,6 +17,7 @@ export class KiktabGallery {
   startPanY = 0;
   startPanX = 0;
   isDragging: boolean;
+  zoom = 1;
 
   constructor() {
   }
@@ -25,7 +26,7 @@ export class KiktabGallery {
     this.ctx = this.canvasEl.getContext('2d');
     const widthNum = parseInt(this.cwidth);
     const heightNum = parseInt(this.cheight);
-    this.loadImage('https://images.pexels.com/photos/4622893/pexels-photo-4622893.jpeg?auto=compress&cs=tinysrgb&dpr=1&w=500', widthNum, heightNum).then((image) => {
+    this.loadImage(`https://loremflickr.com/cache/resized/65535_49953967751_3cd51369d4_320_240_nofilter.jpg`, widthNum, heightNum).then((image) => {
       this.ctx.drawImage(image, 0, 0);
       this.image = image;
       this.setupListeners();
@@ -49,6 +50,7 @@ export class KiktabGallery {
     this.canvasEl.addEventListener('mousedown', (e: MouseEvent) => this.handleMouseDown(e));
     this.canvasEl.addEventListener('mouseup', (e: MouseEvent) => this.handleMouseUp(e));
     this.canvasEl.addEventListener('mousemove', (e: MouseEvent) => this.handleMouseMove(e));
+    this.canvasEl.addEventListener('mousewheel', (e: MouseEvent) => this.handleMouseWheel(e));
   }
 
   handleMouseDown(event: MouseEvent) {
@@ -63,24 +65,68 @@ export class KiktabGallery {
     }
 
     const deltaX = (this.startPanX - event.clientX) / 2;
+    const deltaY = (this.startPanY - event.clientY) / 2;
     this.panX += deltaX;
+    this.panY += deltaY;
     this.startPanX = event.clientX;
-    console.log(this.panX);
-    this.redraw(this.image);
+    this.startPanY = event.clientY;
+    this.redraw(this.image, this.zoom);
   }
 
-  redraw(image = this.image) {
+  handleMouseWheel(event: any) {
+    event.preventDefault();
+    this.mousedown = false;
+    const zoomChange = -event.deltaY;
+    this.zoom += (zoomChange / 4);
+
+    if (this.zoom < 0.75) { this.zoom = 0.75; }
+    if (this.zoom > 3) { this.zoom = 3; }
+    this.redraw(this.image, this.zoom);
+  }
+
+  redraw(image = this.image, zoom: number = 1) {
     if (!this.ctx) { return; }
-    this.ctx.clearRect(0, 0, this.canvasEl.width, this.canvasEl.height);
-    this.ctx.drawImage(image, this.panX, this.panY, image.width, image.height, 0, 0, this.canvasEl.width, this.canvasEl.height);
+    this.ctx.clearRect(0, 0, this.canvasEl.width, this.canvasEl.height); // Clear canvas
+    const perceivedWidth = this.image.width * zoom;
+    const perceivedHeight = this.image.height * zoom;
+
+    let dx = 0;
+    let dy = 0;
+    if (this.zoom > 1) {
+      dx = -perceivedWidth / 4;
+      dy = -perceivedHeight / 4;
+    } else {
+      dx = 0;
+      dy = 0;
+    }
+
+    console.log(this.panX);
+    console.log(this.panY);
+    this.boundPan();
+    this.ctx.drawImage(image, this.panX, this.panY, image.width, image.height, dx, dy, perceivedWidth, perceivedHeight);
+  }
+
+  boundPan() {
+    const padding = 50 * this.zoom;
+    if ((this.panX - padding) < -this.image.width) {
+     this.panX = -this.image.width + padding;
+    }
+
+    if ((this.panX + padding) > this.image.width) {
+      this.panX = this.image.width - padding;
+    }
+
+    if ((this.panY - padding) < -this.image.height) {
+      this.panY = -this.image.height + padding;
+     }
+ 
+     if ((this.panY + padding) > this.image.height) {
+       this.panY = this.image.height - padding;
+     }
   }
 
   handleMouseUp(event: MouseEvent) {
     this.mousedown = false;
-    // this.startPanX = 0;
-    // this.startPanY = 0;
-    // this.panX = 0;
-    // this.panY = 0;
     this.isDragging = false;
   }
 
